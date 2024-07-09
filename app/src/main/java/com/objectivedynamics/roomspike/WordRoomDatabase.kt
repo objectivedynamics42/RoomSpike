@@ -19,6 +19,8 @@ abstract class WordRoomDatabase : RoomDatabase() {
     abstract fun wordDao(): WordDao
 
     companion object {
+
+        //  Effectively a singleton
         @Volatile
         private var INSTANCE: WordRoomDatabase? = null
 
@@ -26,19 +28,28 @@ abstract class WordRoomDatabase : RoomDatabase() {
             context: Context,
             scope: CoroutineScope
         ): WordRoomDatabase {
-            // if the INSTANCE is not null, then return it,
-            // if it is, then create the database
+            //  getDatabase could conceivably be called at any point and potentially many times
+            //  over the lifecycle of the app.
+            //  The first time, the INSTANCE singleton will be null and so the synchronized block
+            //  will be executed to build the database. On subsequent calls, the singleton will
+            //  have been initialised in the first pass and so it's value will be returned
+            //  without creation
+            //  So, if the INSTANCE is not null, then return it, if it is, then create the database
             val wordRoomDatabase = INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                //  Create a database builder
+                val databaseBuilder = Room.databaseBuilder(
                     context.applicationContext,
                     WordRoomDatabase::class.java,
                     "word_database"
                 )
+                val instance = databaseBuilder
                     // Wipes and rebuilds instead of migrating if no Migration object.
                     // Migration is not part of this codelab.
                     .fallbackToDestructiveMigration()
                     .addCallback(WordDatabaseCallback(scope))
                     .build()
+
+                //  Assign the newly built instance to the singleton
                 INSTANCE = instance
                 // return instance
                 instance
